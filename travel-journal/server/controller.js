@@ -1,5 +1,17 @@
-
-
+require('dotenv').config()
+let Sequelize = require('sequelize')
+let { CONNECTION_STRING } = process.env
+let sequelize = new Sequelize(CONNECTION_STRING,
+    {
+        dialect: 'postgres',
+        dialectOptions: {
+            ssl: {
+                rejectUnauthorized: false
+            }
+        }
+      }
+)
+//THE EXTRA CREDIT IS BELOW THE CREATE TABLE cities
 module.exports = {
     seed: (req, res) => {
         sequelize.query(`
@@ -11,7 +23,19 @@ module.exports = {
                 name varchar
             );
 
-            *****YOUR CODE HERE*****
+            CREATE TABLE cities(
+                city_id SERIAL,
+                name VARCHAR(50),
+                rating INT,
+                country_id INT,
+                CONSTRAINT "city_pk" PRIMARY KEY ("city_id"),
+                CONSTRAINT "country_fk1" FOREIGN KEY ("country_id") REFERENCES "countries"("country_id")
+            );
+            
+            INSERT INTO cities (name,rating,country_id)
+            VALUES ('CITY1',3,7),
+            ('CITY2',4,9),
+            ('CITY3',2,13);
 
             insert into countries (name)
             values ('Afghanistan'),
@@ -213,5 +237,46 @@ module.exports = {
             console.log('DB seeded!')
             res.sendStatus(200)
         }).catch(err => console.log('error seeding DB', err))
+    },
+    createCity: (req,res) => {
+        let { name, rating, countryId } = req.body
+        sequelize.query(`
+            INSERT INTO cities(name, rating, country_id)
+            VALUES('${name}', ${rating}, ${countryId})
+        `).then(
+            () => {
+                dbRes => res.status(200).send(dbRes[0])
+            }
+        ).catch(err => console.log(err))
+    },
+    getCountries: (req,res) => {
+        sequelize.query(`
+            SELECT * 
+            FROM countries
+            ORDER BY country_id ASC
+        `).then(
+            dbRes => res.status(200).send(dbRes[0])
+        ).catch(err => console.log(err))
+    },
+    getCities: (req,res) => {
+        // THIS IS SO UGLY I'M SORRY. but I got it to work. definitely my WEAKEST area. I'm way better with server logic than anything else :P
+        sequelize.query(`
+            SELECT city_id, city.name AS city, rating, country.country_id , country.name AS country
+            FROM cities city
+            JOIN countries country 
+            ON city.country_id = country.country_id
+            ORDER BY rating DESC
+        `).then(
+            dbRes => res.status(200).send(dbRes[0])
+        ).catch(err => console.log(err))
+    },
+    deleteCity: (req,res) => {
+        let { id } = req.params
+        sequelize.query(`
+            DELETE FROM cities 
+            WHERE city_id = ${id}
+        `).then(
+            dbRes => res.status(200).send(dbRes[0])
+        ).catch(err => console.log(err))
     }
 }
